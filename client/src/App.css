@@ -95,6 +95,51 @@ input[type='file'] {
   margin-top: 20px;
 }
 
+.image-options {
+  display: grid;
+  gap: 16px;
+}
+
+.option-divider {
+  margin: 0;
+  font-weight: 700;
+  text-align: center;
+}
+
+.object-search {
+  margin-top: 20px;
+}
+
+input[type='text'] {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px;
+  border: 2px solid #6c7d99;
+  border-radius: 10px;
+}
+
+.camera-panel {
+  margin-top: 24px;
+  padding: 20px;
+  border: 2px solid #3157a4;
+  border-radius: 12px;
+  background: #f8faff;
+}
+
+.camera-panel h3 {
+  margin-top: 0;
+  font-size: 1.3rem;
+}
+
+.camera-panel video {
+  display: block;
+  width: 100%;
+  max-height: 500px;
+  border-radius: 10px;
+  background: #101722;
+  object-fit: contain;
+}
+
 @media (max-width: 600px) {
   main {
     padding: 24px 0;

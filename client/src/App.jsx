@@ -1,15 +1,29 @@
 import { useRef, useState } from 'react'
+import CameraCapture from './CameraCapture'
 import './App.css'
 
 function App() {
   const [selectedMode, setSelectedMode] = useState('describe')
   const [selectedImage, setSelectedImage] = useState(null)
   const [objectQuery, setObjectQuery] = useState('')
+  const [showCamera, setShowCamera] = useState(false)
   const imageInputRef = useRef(null)
 
   function removeImage() {
     setSelectedImage(null)
-    imageInputRef.current.value = ''
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }
+
+  function handleCameraCapture(photo) {
+    setSelectedImage(photo)
+    setShowCamera(false)
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
   }
 
   return (
@@ -72,19 +86,39 @@ function App() {
       <section aria-labelledby="image-heading">
         <h2 id="image-heading">Choose a picture</h2>
 
-        <label htmlFor="image-upload">
-          Take or upload a picture
-        </label>
+        <div className="image-options">
+          <div>
+            <label htmlFor="image-upload">
+              Upload an existing picture
+            </label>
 
-        <input
-          ref={imageInputRef}
-          id="image-upload"
-          type="file"
-          accept="image/*"
-          onChange={(event) => {
-            setSelectedImage(event.target.files[0] || null)
-          }}
-        />
+            <input
+              ref={imageInputRef}
+              id="image-upload"
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                setSelectedImage(event.target.files[0] || null)
+              }}
+            />
+          </div>
+
+          <p className="option-divider">or</p>
+
+          <button
+            type="button"
+            onClick={() => setShowCamera(true)}
+          >
+            Open Camera
+          </button>
+        </div>
+
+        {showCamera && (
+          <CameraCapture
+            onCapture={handleCameraCapture}
+            onClose={() => setShowCamera(false)}
+          />
+        )}
 
         {selectedImage && (
           <div>
