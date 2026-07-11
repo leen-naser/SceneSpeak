@@ -4,6 +4,7 @@ import './App.css'
 function App() {
   const [selectedMode, setSelectedMode] = useState('describe')
   const [selectedImage, setSelectedImage] = useState(null)
+  const [objectQuery, setObjectQuery] = useState('')
   const imageInputRef = useRef(null)
 
   function removeImage() {
@@ -50,6 +51,22 @@ function App() {
         >
           Find an Object
         </button>
+
+        {selectedMode === 'find' && (
+          <div className="object-search">
+            <label htmlFor="object-query">
+              What object would you like to find?
+            </label>
+
+            <input
+              id="object-query"
+              type="text"
+              value={objectQuery}
+              onChange={(event) => setObjectQuery(event.target.value)}
+              placeholder="For example: exit, chair, or backpack"
+            />
+          </div>
+        )}
       </section>
 
       <section aria-labelledby="image-heading">
@@ -87,7 +104,10 @@ function App() {
         <button
           type="button"
           className="analyze-button"
-          disabled={!selectedImage}
+          disabled={
+            !selectedImage ||
+            (selectedMode === 'find' && !objectQuery.trim())
+          }
         >
           Analyze Image
         </button>
