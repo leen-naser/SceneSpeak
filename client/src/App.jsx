@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CameraCapture from './CameraCapture'
 import './App.css'
 
@@ -7,10 +7,36 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null)
   const [objectQuery, setObjectQuery] = useState('')
   const [showCamera, setShowCamera] = useState(false)
+  const [description, setDescription] = useState('')
+  const [audioUrl, setAudioUrl] = useState('')
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
   const imageInputRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl)
+      }
+    }
+  }, [audioUrl])
+
+  function clearResults() {
+    setDescription('')
+    setStatus('')
+    setError('')
+
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl)
+      setAudioUrl('')
+    }
+  }
 
   function removeImage() {
     setSelectedImage(null)
+    clearResults()
 
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
@@ -20,9 +46,94 @@ function App() {
   function handleCameraCapture(photo) {
     setSelectedImage(photo)
     setShowCamera(false)
+    clearResults()
+    setStatus('Photo captured and ready for analysis.')
 
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1]
+        resolve(base64)
+      }
+
+      reader.onerror = () => {
+        reject(new Error('The image could not be read.'))
+      }
+
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleAnalyze() {
+    if (!selectedImage) {
+      return
+    }
+
+    setIsLoading(true)
+    clearResults()
+    setStatus('Analyzing image. Please wait.')
+
+    try {
+      const imageBase64 = await fileToBase64(selectedImage)
+
+      const analyzeResponse = await fetch('/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: imageBase64,
+          mimeType: selectedImage.type,
+          mode: selectedMode,
+          objectQuery:
+            selectedMode === 'find' ? objectQuery.trim() : '',
+        }),
+      })
+
+      const analyzeData = await analyzeResponse.json()
+
+      if (!analyzeResponse.ok) {
+        throw new Error(
+          analyzeData.error || 'The image could not be analyzed.'
+        )
+      }
+
+      setDescription(analyzeData.description)
+      setStatus('Analysis complete. Generating spoken result.')
+
+      const speechResponse = await fetch('/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: analyzeData.description,
+        }),
+      })
+
+      if (!speechResponse.ok) {
+        throw new Error(
+          'The description was created, but speech could not be generated.'
+        )
+      }
+
+      const audioBlob = await speechResponse.blob()
+      const newAudioUrl = URL.createObjectURL(audioBlob)
+
+      setAudioUrl(newAudioUrl)
+      setStatus('Analysis and spoken result are ready.')
+    } catch (requestError) {
+      setError(requestError.message)
+      setStatus('')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -98,7 +209,13 @@ function App() {
               type="file"
               accept="image/*"
               onChange={(event) => {
-                setSelectedImage(event.target.files[0] || null)
+                const image = event.target.files[0] || null
+                setSelectedImage(image)
+                clearResults()
+
+                if (image) {
+                  setStatus('Picture selected and ready for analysis.')
+                }
               }}
             />
           </div>
@@ -122,14 +239,11 @@ function App() {
 
         {selectedImage && (
           <div>
-            <p role="status">
+            <p>
               Selected image: {selectedImage.name}
             </p>
 
-            <button
-              type="button"
-              onClick={removeImage}
-            >
+            <button type="button" onClick={removeImage}>
               Remove Image
             </button>
           </div>
@@ -138,14 +252,44 @@ function App() {
         <button
           type="button"
           className="analyze-button"
+          onClick={handleAnalyze}
           disabled={
+            isLoading ||
             !selectedImage ||
             (selectedMode === 'find' && !objectQuery.trim())
           }
         >
-          Analyze Image
+          {isLoading ? 'Analyzing…' : 'Analyze Image'}
         </button>
       </section>
+
+      <div aria-live="polite" aria-atomic="true">
+        {status && <p className="status-message">{status}</p>}
+      </div>
+
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+
+      {description && (
+        <section aria-labelledby="result-heading">
+          <h2 id="result-heading">Result</h2>
+          <p>{description}</p>
+
+          {audioUrl && (
+            <audio
+              src={audioUrl}
+              controls
+              autoPlay
+              aria-label="Spoken SceneSpeak result"
+            >
+              Your browser does not support audio playback.
+            </audio>
+          )}
+        </section>
+      )}
     </main>
   )
 }
